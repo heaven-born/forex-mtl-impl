@@ -19,8 +19,13 @@ class RatesHttpRoutes[F[_]: Sync](rates: RatesProgram[F]) extends Http4sDsl[F] {
     case GET -> Root :? FromQueryParam(from) +& ToQueryParam(to) =>
       rates
         .get(RatesProgramProtocol.GetRatesRequest(from, to))
-        .flatMap(Sync[F].fromEither)
-        .flatMap { rate => Ok(rate.asGetApiResponse) }
+        .flatMap{
+          case Left(error) =>
+            error.ex.foreach(_.printStackTrace())
+            InternalServerError(s"${error.msg}\r\n")
+          case Right(result) =>
+            Ok(result.asGetApiResponse)
+        }
   }
 
   val routes: HttpRoutes[F] = Router(

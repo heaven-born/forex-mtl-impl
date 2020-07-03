@@ -32,6 +32,8 @@ resolvers +=
 
 libraryDependencies ++= Seq(
   compilerPlugin(Libraries.kindProjector),
+  Libraries.sttp,
+  Libraries.sttpBackend,
   Libraries.cats,
   Libraries.catsEffect,
   Libraries.fs2,
