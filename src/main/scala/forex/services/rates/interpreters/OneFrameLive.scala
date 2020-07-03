@@ -31,7 +31,7 @@ class OneFrameLive[F[_]: Applicative : Async](config: OneFrameServerHttpConfig) 
 
     val r = for {
       json <- handleEndpointErrors(res)
-      rate <- EitherT(handleJsonErrors(json).pure[F])
+      rate <- handleJsonErrors(json)
         fromCurrency = Currency.fromString(rate(0).from) // FIX: remove  index
         toCurrency = Currency.fromString(rate(0).to)
         price = rate(0).price
@@ -42,27 +42,27 @@ class OneFrameLive[F[_]: Applicative : Async](config: OneFrameServerHttpConfig) 
 
   }
 
-  def handleJsonErrors(json: String): Either[RatesServiceError, List[OneFrameRate]] =
-    for {
-     json <- parse(json)
-       .leftMap(e => OneFrameLookupJsonParsingError("Parsing error",Some(e)))
-     obj  <- json.as[List[OneFrameRate]]
-       .leftMap(e => OneFrameLookupJsonMappingError(s"Mapping error. Reason: ${e.getMessage()}. JSON: ${json.noSpaces}",Some(e)))
+  private def handleJsonErrors(json: String): EitherT[F,RatesServiceError, List[OneFrameRate]] = {
+
+    val either:Either[RatesServiceError, List[OneFrameRate]] = for {
+      json <- parse(json)
+        .leftMap(e => OneFrameLookupJsonParsingError("Parsing error", Some(e)))
+      obj <- json.as[List[OneFrameRate]]
+        .leftMap(e => OneFrameLookupJsonMappingError(s"Mapping error. Reason: ${e.getMessage()}. JSON: ${json.noSpaces}", Some(e)))
     } yield obj
 
-    //decode[OneFrameRate](json)
-    //.leftMap(error =>  OneFrameLookupJsonError("Json parsing or mapping error. Reason: "+error.getMessage,Some(error)) )
+    EitherT(either.pure[F])
+  }
 
 
-  def handleEndpointErrors[T[_]: Applicative](
-              res: T[Try[Response[Either[String, String]]]]): EitherT[T, RatesServiceError, String] =
+  private def handleEndpointErrors(
+              res: F[Try[Response[Either[String, String]]]]): EitherT[F, RatesServiceError, String] =
     EitherT {
       res.map {
         case Failure(ex) =>
           OneFrameLookupConnectionError("Can't get rates from data provider", Some(ex)).asLeft[String]
-        case Success(resp) => resp.body.bimap(
-          l => OneFrameLookupResponseError(l),
-          resp => resp
+        case Success(resp) => resp.body.leftMap(
+          OneFrameLookupResponseError(_)
         )
       }
     }
