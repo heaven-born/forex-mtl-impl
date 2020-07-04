@@ -13,6 +13,7 @@ object Dependencies {
 
     val kindProjector       = "0.9.10"
     val logback             = "1.2.3"
+    val scalaLogging        = "3.9.2"
     val scalaCheck          = "1.14.3"
     val scalaTest           = "3.1.0"
     val catsScalaCheck      = "0.2.0"
@@ -46,6 +47,9 @@ object Dependencies {
 
     // Runtime
     lazy val logback             = "ch.qos.logback"        %  "logback-classic"            % Versions.logback
+
+    lazy val scalaLogging             = "com.typesafe.scala-logging" %% "scala-logging" % Versions.scalaLogging
+
 
     // Test
     lazy val scalaTest           = "org.scalatest"         %% "scalatest"                  % Versions.scalaTest

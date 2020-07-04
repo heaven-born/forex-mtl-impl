@@ -12,6 +12,7 @@ import forex.domain.{Currency, Price, Rate, Timestamp}
 import forex.services.rates.OneFrameHttpRequestHandler
 import forex.services.rates.errors._
 import cats.implicits._
+import com.typesafe.scalalogging.Logger
 import forex.OneFrameStateDomain.{OneFrameRate, OneFrameRateState}
 import forex.services.rates
 import forex.services.rates.errors.RatesServiceError.{OneFrameLookupJsonMappingError, OneFrameLookupJsonParsingError}
@@ -31,12 +32,15 @@ class OneFrameLive[F[_]: Applicative : Async: Timer](
                      oneFrameState: Ref[F, Option[OneFrameRateState]])
   extends rates.Algebra[F] with Schedulable[F] {
 
+  val logger = Logger[OneFrameLive[F]]
 
 
   override def get(pair: Rate.Pair): F[RatesServiceError Either Rate] = {
     val r = for {
       json <- requestHandler.getFreshData()
+        _ = logger.info("Json: "+json)
       rate <- mapJsonToRates(json)
+        _ = logger.info("Rate: "+rate)
         fromCurrency = Currency.fromString(rate(0).from) // FIX: remove  index
         toCurrency = Currency.fromString(rate(0).to)
         price = rate(0).price
