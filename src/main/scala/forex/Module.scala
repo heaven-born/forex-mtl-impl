@@ -17,6 +17,9 @@ class Module[F[_]: Concurrent: Timer](config: ApplicationConfig) {
 
   private val ratesHttpRoutes: HttpRoutes[F] = new RatesHttpRoutes[F](ratesProgram).routes
 
+  //it can merge streams from multiple services
+  def scheduledTasks = ratesService.scheduledTasks
+
   type PartialMiddleware = HttpRoutes[F] => HttpRoutes[F]
   type TotalMiddleware   = HttpApp[F] => HttpApp[F]
 

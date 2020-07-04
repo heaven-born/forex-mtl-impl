@@ -1,37 +1,38 @@
 package forex.services.rates.interpreters
 
-import java.time.OffsetDateTime
+
+import java.util.concurrent.TimeUnit
 
 import cats.Applicative
 import cats.data.EitherT
-import cats.effect.Async
+import cats.effect.{Async, Timer}
 import forex.config.OneFrameServerHttpConfig
 import forex.domain.{Currency, Price, Rate, Timestamp}
-import forex.services.rates.Algebra
+import forex.services.rates.{Algebra, OneFrameHttpRequestHandler}
 import forex.services.rates.errors._
-import sttp.client._
 import cats.implicits._
-import forex.services.rates.errors.RatesServiceError.{OneFrameLookupConnectionError, OneFrameLookupJsonMappingError, OneFrameLookupJsonParsingError, OneFrameLookupResponseError}
-import forex.services.rates.interpreters.OneFrameLive.OneFrameRate
+import forex.services.rates.errors.RatesServiceError.{OneFrameLookupJsonMappingError, OneFrameLookupJsonParsingError}
+import forex.services.state.OneFrameRate
+import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.parser._
 
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration.FiniteDuration
 
 
-class OneFrameLive[F[_]: Applicative : Async](config: OneFrameServerHttpConfig) extends Algebra[F] {
 
-  implicit val sttpBackend = HttpURLConnectionBackend()
+
+class OneFrameLive[F[_]: Applicative : Async: Timer](
+                     config: OneFrameServerHttpConfig,
+                     requestHandler: OneFrameHttpRequestHandler[F] )
+  extends Algebra[F] {
+
+
 
   override def get(pair: Rate.Pair): F[RatesServiceError Either Rate] = {
-    val request = basicRequest
-        .get(uri"http://localhost:8081/rates?pair=${pair.from}${pair.to}")
-        .header("token","10dc303535874aeccc86a8251e6992f5")
-    val res  = Async[F].delay(Try(request.send()))
-
     val r = for {
-      json <- handleEndpointErrors(res)
-      rate <- handleJsonErrors(json)
+      json <- requestHandler.getFreshData()
+      rate <- mapJsonToRates(json)
         fromCurrency = Currency.fromString(rate(0).from) // FIX: remove  index
         toCurrency = Currency.fromString(rate(0).to)
         price = rate(0).price
@@ -42,7 +43,19 @@ class OneFrameLive[F[_]: Applicative : Async](config: OneFrameServerHttpConfig) 
 
   }
 
-  private def handleJsonErrors(json: String): EitherT[F,RatesServiceError, List[OneFrameRate]] = {
+  override def scheduledTasks: Stream[F, Unit] = {
+    //val everyFiveSeconds = Cron.unsafeParse("*/5 * * ? * *")
+    //def printTime = Stream.eval(Applicative[F].pure(println(LocalTime.now)))
+    //awakeEveryCron[F](everyFiveSeconds) >> printTime
+
+    def t:F[Unit] = Timer[F].sleep(FiniteDuration(10, TimeUnit.SECONDS)) >> {
+      Async[F].delay(println("tick")) >> t
+    }
+
+    Stream.eval(t)
+  }
+
+  private def mapJsonToRates(json: String): EitherT[F,RatesServiceError, List[OneFrameRate]] = {
 
     val either:Either[RatesServiceError, List[OneFrameRate]] = for {
       json <- parse(json)
@@ -55,29 +68,7 @@ class OneFrameLive[F[_]: Applicative : Async](config: OneFrameServerHttpConfig) 
   }
 
 
-  private def handleEndpointErrors(
-              res: F[Try[Response[Either[String, String]]]]): EitherT[F, RatesServiceError, String] =
-    EitherT {
-      res.map {
-        case Failure(ex) =>
-          OneFrameLookupConnectionError("Can't get rates from data provider", Some(ex)).asLeft[String]
-        case Success(resp) => resp.body.leftMap(
-          OneFrameLookupResponseError(_)
-        )
-      }
-    }
 
-
-  //allSupportedCurrencies.combinations(2) .flatMap(_.permutations) .map(p=>"pair="+p(0)+p(1)+"&")
 
 }
 
-object OneFrameLive {
-  case class OneFrameRate (from: String,
-                           to: String,
-                           bid: BigDecimal ,
-                           ask: BigDecimal,
-                           price: BigDecimal,
-                           time_stamp: OffsetDateTime)
-
-}

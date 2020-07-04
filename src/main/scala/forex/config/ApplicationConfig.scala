@@ -14,6 +14,5 @@ case class HttpConfig(
 )
 
 case class OneFrameServerHttpConfig(
-     host: String,
-     port: Int
+     url: String
 )
