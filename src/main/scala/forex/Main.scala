@@ -5,7 +5,7 @@ import cats.effect._
 import cats.implicits.{catsSyntaxApplicativeId, toFlatMapOps}
 import cats.syntax.functor._
 import forex.config.{ApplicationConfig, _}
-import forex.services.state.oneFrameSharedState
+import forex.state.SharedState
 import fs2.Stream
 import org.http4s.server.blaze.BlazeServerBuilder
 
@@ -25,10 +25,11 @@ class Application[F[_]: ConcurrentEffect: Timer: Applicative: FlatMap] {
   def build: F[Stream[F, Unit]] = {
 
     val config = Config.plain("app")
-    val module = new Module[F](config)
 
     for {
-      state <- oneFrameSharedState
+      oneFrameState <- OneFrameStateDomain.init
+      sharedState = SharedState(oneFrameState)
+      module = new Module[F](config, sharedState)
       server <- buildServer(config,module).pure[F]
      } yield server.merge(module.scheduledTasks)
 

@@ -5,14 +5,15 @@ import java.util.concurrent.TimeUnit
 
 import cats.Applicative
 import cats.data.EitherT
+import cats.effect.concurrent.Ref
 import cats.effect.{Async, Timer}
 import forex.config.OneFrameServerHttpConfig
 import forex.domain.{Currency, Price, Rate, Timestamp}
 import forex.services.rates.{Algebra, OneFrameHttpRequestHandler}
 import forex.services.rates.errors._
 import cats.implicits._
+import forex.OneFrameStateDomain.{OneFrameRate, OneFrameRateState}
 import forex.services.rates.errors.RatesServiceError.{OneFrameLookupJsonMappingError, OneFrameLookupJsonParsingError}
-import forex.services.state.OneFrameRate
 import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.parser._
@@ -24,7 +25,8 @@ import scala.concurrent.duration.FiniteDuration
 
 class OneFrameLive[F[_]: Applicative : Async: Timer](
                      config: OneFrameServerHttpConfig,
-                     requestHandler: OneFrameHttpRequestHandler[F] )
+                     requestHandler: OneFrameHttpRequestHandler[F],
+                     oneFrameState: Ref[F, OneFrameRateState])
   extends Algebra[F] {
 
 
@@ -44,10 +46,6 @@ class OneFrameLive[F[_]: Applicative : Async: Timer](
   }
 
   override def scheduledTasks: Stream[F, Unit] = {
-    //val everyFiveSeconds = Cron.unsafeParse("*/5 * * ? * *")
-    //def printTime = Stream.eval(Applicative[F].pure(println(LocalTime.now)))
-    //awakeEveryCron[F](everyFiveSeconds) >> printTime
-
     def t:F[Unit] = Timer[F].sleep(FiniteDuration(10, TimeUnit.SECONDS)) >> {
       Async[F].delay(println("tick")) >> t
     }
