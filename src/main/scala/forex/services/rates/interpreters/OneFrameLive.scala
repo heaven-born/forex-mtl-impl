@@ -9,11 +9,13 @@ import cats.effect.concurrent.Ref
 import cats.effect.{Async, Timer}
 import forex.config.OneFrameServerHttpConfig
 import forex.domain.{Currency, Price, Rate, Timestamp}
-import forex.services.rates.{Algebra, OneFrameHttpRequestHandler}
+import forex.services.rates.OneFrameHttpRequestHandler
 import forex.services.rates.errors._
 import cats.implicits._
 import forex.OneFrameStateDomain.{OneFrameRate, OneFrameRateState}
+import forex.services.rates
 import forex.services.rates.errors.RatesServiceError.{OneFrameLookupJsonMappingError, OneFrameLookupJsonParsingError}
+import forex.state.Schedulable
 import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.parser._
@@ -27,7 +29,7 @@ class OneFrameLive[F[_]: Applicative : Async: Timer](
                      config: OneFrameServerHttpConfig,
                      requestHandler: OneFrameHttpRequestHandler[F],
                      oneFrameState: Ref[F, Option[OneFrameRateState]])
-  extends Algebra[F] {
+  extends rates.Algebra[F] with Schedulable[F] {
 
 
 
@@ -47,7 +49,7 @@ class OneFrameLive[F[_]: Applicative : Async: Timer](
 
   override def scheduledTasks: Stream[F, Unit] = {
     def t:F[Unit] = Timer[F].sleep(FiniteDuration(10, TimeUnit.SECONDS)) >> {
-      Async[F].delay(println("tick")) >> t
+      Applicative[F].pure(println("tick")) >> t
     }
 
     Stream.eval(t)
