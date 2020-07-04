@@ -26,7 +26,7 @@ import scala.concurrent.duration.FiniteDuration
 class OneFrameLive[F[_]: Applicative : Async: Timer](
                      config: OneFrameServerHttpConfig,
                      requestHandler: OneFrameHttpRequestHandler[F],
-                     oneFrameState: Ref[F, OneFrameRateState])
+                     oneFrameState: Ref[F, Option[OneFrameRateState]])
   extends Algebra[F] {
 
 

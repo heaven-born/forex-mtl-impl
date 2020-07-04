@@ -7,7 +7,7 @@ import cats.effect.concurrent.Ref
 
 object OneFrameStateDomain {
 
-  def init[F[_]:Sync] = Ref.of(OneFrameRateState(0,Map()))
+  def init[F[_]:Sync]:F[Ref[F,Option[OneFrameRateState]]] = Ref.of(None)
 
   case class CurrencyPair(from: String, to: String)
 
