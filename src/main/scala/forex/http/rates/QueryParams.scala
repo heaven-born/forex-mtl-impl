@@ -1,15 +1,24 @@
 package forex.http.rates
 
+import cats.implicits.catsSyntaxValidatedId
 import forex.domain.Currency
-import org.http4s.QueryParamDecoder
-import org.http4s.dsl.impl.QueryParamDecoderMatcher
+import org.http4s.{ParseFailure, QueryParamDecoder, QueryParameterValue}
+import org.http4s.dsl.impl.ValidatingQueryParamDecoderMatcher
+
+import scala.util.{Failure, Success, Try}
 
 object QueryParams {
 
-  private[http] implicit val currencyQueryParam: QueryParamDecoder[Currency] =
-    QueryParamDecoder[String].map(Currency.fromString)
+  implicit lazy val stringQueryParamDecoder: QueryParamDecoder[Currency] =
+    (value: QueryParameterValue ) => Try(Currency.fromString(value.value)) match {
+      case Success(v) => v.validNel[ParseFailure]
+      case Failure(_) => ParseFailure(
+              "Failed to parse Currency query parameter",
+               s"Could not parse ${value.value} as a Currency")
+        .invalidNel[Currency]
+    }
 
-  object FromQueryParam extends QueryParamDecoderMatcher[Currency]("from")
-  object ToQueryParam extends QueryParamDecoderMatcher[Currency]("to")
+  object FromQueryParam extends ValidatingQueryParamDecoderMatcher[Currency]("from")
+  object ToQueryParam extends ValidatingQueryParamDecoderMatcher[Currency]("to")
 
 }

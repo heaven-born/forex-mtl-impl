@@ -29,6 +29,11 @@ object errors {
     final case class StateInitializationError (msg:String = "State is not initialized yet")
       extends  OneFrameServiceError with ApplicationError
 
+    final case class NoSuchCurrencyPairError(pair:String)
+      extends  OneFrameServiceError with ApplicationError {
+       def msg = s"No such currency pair available in cache $pair"
+    }
+
 
   }
 

@@ -1,7 +1,6 @@
 package forex.services.rates.interpreters
 
 
-
 import cats.Applicative
 import cats.data.EitherT
 import cats.effect.{Async, Concurrent, Timer}
@@ -13,8 +12,9 @@ import cats.implicits._
 import com.typesafe.scalalogging.Logger
 import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate, OneFrameRateState, OneFrameState}
 import forex.services.rates
-import forex.services.rates.errors.OneFrameServiceError.{JsonMappingError, JsonParsingError}
+import forex.services.rates.errors.OneFrameServiceError.{JsonMappingError, JsonParsingError, NoSuchCurrencyPairError}
 import forex.state.Schedulable
+import forex.utils.TimeUtils
 import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.parser._
@@ -31,9 +31,16 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
 
 
   override def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate] = {
+    val currencyPair = CurrencyPair(from = pair.from.show, to = pair.to.show)
+
+    def currencyPairValidation(state: OneFrameRateState) =
+      if (state.rates.contains(currencyPair)) Right(state)
+      else Left(NoSuchCurrencyPairError(s"${pair.from}/${pair.to}"):OneFrameServiceError)
+
     val r = for {
       state <- EitherT(oneFrameCache.get)
-      rate = state.rates(CurrencyPair(from = pair.from.show, to=pair.to.show))
+      _     <- EitherT(currencyPairValidation(state).pure[F])
+        rate = state.rates(currencyPair)
         _ = logger.info("Rate: "+rate)
         fromCurrency = Currency.fromString(rate.from)
         toCurrency = Currency.fromString(rate.to)
@@ -57,20 +64,22 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
 
     def cacheUpdate:F[Unit] = rates.value.flatMap {
       case Left(error) =>
-        logger.error(error.msg, error.ex.getOrElse("Type: Application Error"))
+        logger.error(error.msg)
         val setNewState = oneFrameCache.update {
-            case Left(err) =>
-              logger.error(s"Cache was updated with the last error: ${err.msg}")
+            case Left(_) =>
+              logger.error(s"Cache was updated with the last error: ${error.msg}")
               Left(error)
             case r @ Right(cache) =>
-              logger.error("Cache was leaned due to expiration time.")
-              if (cache.expiredOn.isOverdue()) Left(error) else r
+              if (cache.expiredOn.isOverdue()) {
+                logger.error("Cache was expired and removed.")
+                Left(error)
+              } else r
         }
         setNewState >> Timer[F].sleep(config.ratesRequestRetryInterval) >> cacheUpdate
       case Right(data) =>
         val newRates = data.map(d => CurrencyPair(d.from,d.to) -> d).toMap
         val deadline = config.cacheExpirationTime.fromNow
-        logger.info(s"Received new rates with deadline ${deadline} for currency paris: ${newRates.keys}")
+        logger.info(s"Received new rates with expiration time ${TimeUtils.deadlineToDate(deadline)} for currency paris: ${newRates.keys.mkString(" ")}")
         val setNewState = oneFrameCache.set(Right(OneFrameRateState(deadline,newRates)))
         setNewState >> Timer[F].sleep(config.ratesRequestInterval) >> cacheUpdate
     }
