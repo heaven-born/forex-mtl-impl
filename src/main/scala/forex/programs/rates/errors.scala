@@ -1,6 +1,6 @@
 package forex.programs.rates
 
-import forex.services.rates.errors.RatesServiceError
+import forex.services.rates.errors.OneFrameServiceError
 
 object errors {
 
@@ -12,11 +12,12 @@ object errors {
     final case class RateLookupFailed(msg: String, ex:Option[Throwable] = None ) extends RatesProgramError
   }
 
-  def toProgramError(error: RatesServiceError): RatesProgramError = error match {
-    case RatesServiceError.OneFrameLookupResponseError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
-    case RatesServiceError.OneFrameLookupConnectionError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
-    case RatesServiceError.OneFrameLookupJsonParsingError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
-    case RatesServiceError.OneFrameLookupJsonMappingError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
+  def toProgramError(error: OneFrameServiceError): RatesProgramError = error match {
+    case OneFrameServiceError.LookupResponseError(msg) => RatesProgramError.RateLookupFailed(msg, None)
+    case OneFrameServiceError.LookupConnectionError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
+    case OneFrameServiceError.JsonParsingError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
+    case OneFrameServiceError.JsonMappingError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
+    case OneFrameServiceError.StateInitializationError(msg) => RatesProgramError.RateLookupFailed(msg, None)
   }
 
 }

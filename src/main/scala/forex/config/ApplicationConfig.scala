@@ -4,7 +4,7 @@ import scala.concurrent.duration.FiniteDuration
 
 case class ApplicationConfig(
     http: HttpConfig,
-    oneFrameServerHttp: OneFrameServerHttpConfig,
+    ratesService: RatesService,
 )
 
 case class HttpConfig(
@@ -13,6 +13,14 @@ case class HttpConfig(
     timeout: FiniteDuration
 )
 
+case class RatesService(
+    oneFrameServerHttp: OneFrameServerHttpConfig,
+    ratesRequestInterval : FiniteDuration,
+    ratesRequestRetryInterval : FiniteDuration,
+    cacheExpirationTime : FiniteDuration
+)
+
 case class OneFrameServerHttpConfig(
-     url: String
+    url: String,
+    timeout: FiniteDuration
 )

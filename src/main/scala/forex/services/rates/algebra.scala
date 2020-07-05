@@ -4,5 +4,5 @@ import forex.domain.Rate
 import errors._
 
 trait Algebra[F[_]] {
-  def get(pair: Rate.Pair): F[RatesServiceError Either Rate]
+  def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate]
 }

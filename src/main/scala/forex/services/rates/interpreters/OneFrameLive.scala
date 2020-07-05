@@ -5,17 +5,16 @@ import java.util.concurrent.TimeUnit
 
 import cats.Applicative
 import cats.data.EitherT
-import cats.effect.concurrent.Ref
-import cats.effect.{Async, Timer}
-import forex.config.OneFrameServerHttpConfig
+import cats.effect.{Async, Concurrent, Timer}
+import forex.config.RatesService
 import forex.domain.{Currency, Price, Rate, Timestamp}
 import forex.services.rates.OneFrameHttpRequestHandler
 import forex.services.rates.errors._
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
-import forex.OneFrameStateDomain.{OneFrameRate, OneFrameRateState}
+import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate, OneFrameRateState, OneFrameState}
 import forex.services.rates
-import forex.services.rates.errors.RatesServiceError.{OneFrameLookupJsonMappingError, OneFrameLookupJsonParsingError}
+import forex.services.rates.errors.OneFrameServiceError.{JsonMappingError, JsonParsingError}
 import forex.state.Schedulable
 import fs2.Stream
 import io.circe.generic.auto._
@@ -26,16 +25,15 @@ import scala.concurrent.duration.FiniteDuration
 
 
 
-class OneFrameLive[F[_]: Applicative : Async: Timer](
-                     config: OneFrameServerHttpConfig,
-                     requestHandler: OneFrameHttpRequestHandler[F],
-                     oneFrameState: Ref[F, Option[OneFrameRateState]])
+class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesService,
+                                                                 requestHandler: OneFrameHttpRequestHandler[F],
+                                                                 oneFrameCache: OneFrameState[F])
   extends rates.Algebra[F] with Schedulable[F] {
 
   val logger = Logger[OneFrameLive[F]]
 
 
-  override def get(pair: Rate.Pair): F[RatesServiceError Either Rate] = {
+  override def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate] = {
     val r = for {
       json <- requestHandler.getFreshData()
         _ = logger.info("Json: "+json)
@@ -52,20 +50,45 @@ class OneFrameLive[F[_]: Applicative : Async: Timer](
   }
 
   override def scheduledTasks: Stream[F, Unit] = {
-    def t:F[Unit] = Timer[F].sleep(FiniteDuration(10, TimeUnit.SECONDS)) >> {
-      Applicative[F].pure(println("tick")) >> t
+
+    val rates = for {
+      json <- requestHandler.getFreshData()
+      _ = logger.debug(s"Json: ${json}")
+      rate <- mapJsonToRates(json)
+      _ = logger.debug(s"Rates: ${rate}")
+    } yield  rate
+
+
+    def cacheUpdate:F[Unit] = rates.value.flatMap {
+      case Left(error) =>
+        logger.error(error.msg, error.ex.getOrElse("Type: Application Error"))
+        oneFrameCache.update {
+            case Left(err) =>
+              logger.error(s"Cache was updated with the last error: ${err.msg}")
+              Left(error)
+            case r @ Right(cache) =>
+              logger.error("Cache was leaned due to expiration time.")
+              if (cache.expiredOn.isOverdue()) Left(error) else r
+        }
+        Timer[F].sleep(config.ratesRequestRetryInterval) >> cacheUpdate
+      case Right(data) =>
+        val newRates = data.map(d => (CurrencyPair(d.from,d.to) -> d)).toMap
+        val deadline = FiniteDuration(5, TimeUnit.MINUTES).fromNow
+        logger.info(s"Received new rates with deadline ${deadline} for currency paris: ${newRates.keys}")
+        oneFrameCache.set(Right(OneFrameRateState(deadline,newRates)))
+        Timer[F].sleep(config.ratesRequestInterval) >> cacheUpdate
     }
 
-    Stream.eval(t)
+    Stream.eval(cacheUpdate)
   }
 
-  private def mapJsonToRates(json: String): EitherT[F,RatesServiceError, List[OneFrameRate]] = {
+  private def mapJsonToRates(json: String): EitherT[F,OneFrameServiceError, List[OneFrameRate]] = {
 
-    val either:Either[RatesServiceError, List[OneFrameRate]] = for {
+    val either:Either[OneFrameServiceError, List[OneFrameRate]] = for {
       json <- parse(json)
-        .leftMap(e => OneFrameLookupJsonParsingError("Parsing error", Some(e)))
+        .leftMap(e => JsonParsingError("Parsing error", Some(e)))
       obj <- json.as[List[OneFrameRate]]
-        .leftMap(e => OneFrameLookupJsonMappingError(s"Mapping error. Reason: ${e.getMessage()}. JSON: ${json.noSpaces}", Some(e)))
+        .leftMap(e => JsonMappingError(s"Mapping error. Reason: ${e.getMessage()}. JSON: ${json.noSpaces}", Some(e)))
     } yield obj
 
     EitherT(either.pure[F])
