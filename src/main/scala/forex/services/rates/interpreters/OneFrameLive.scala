@@ -1,7 +1,6 @@
 package forex.services.rates.interpreters
 
 
-import java.util.concurrent.TimeUnit
 
 import cats.Applicative
 import cats.data.EitherT
@@ -19,8 +18,6 @@ import forex.state.Schedulable
 import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.parser._
-
-import scala.concurrent.duration.FiniteDuration
 
 
 
@@ -72,8 +69,8 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
         }
         Timer[F].sleep(config.ratesRequestRetryInterval) >> cacheUpdate
       case Right(data) =>
-        val newRates = data.map(d => (CurrencyPair(d.from,d.to) -> d)).toMap
-        val deadline = FiniteDuration(5, TimeUnit.MINUTES).fromNow
+        val newRates = data.map(d => CurrencyPair(d.from,d.to) -> d).toMap
+        val deadline = config.cacheExpirationTime.fromNow
         logger.info(s"Received new rates with deadline ${deadline} for currency paris: ${newRates.keys}")
         oneFrameCache.set(Right(OneFrameRateState(deadline,newRates)))
         Timer[F].sleep(config.ratesRequestInterval) >> cacheUpdate

@@ -7,7 +7,6 @@ import forex.config.RatesService
 import interpreters._
 
 object Interpreters {
-  def dummy[F[_]: Applicative](): Algebra[F] = new OneFrameDummy[F]()
   def live[F[_]: Applicative: Async: Timer: Concurrent](
                                                          config: RatesService,
                                                          oneFrameState: OneFrameState[F]) =

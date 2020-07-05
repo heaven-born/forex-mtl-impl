@@ -45,7 +45,7 @@ class OneFrameHttpRequestHandler[F[_]: Applicative : Async] (config:OneFrameServ
           LookupConnectionError("Can't get rates from data provider", Some(ex))
             .asLeft[String]
         case Success(resp) => resp.body.leftMap(
-          LookupResponseError(_)
+          LookupResponseError
         )
       }
     }
