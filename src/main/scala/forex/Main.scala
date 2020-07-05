@@ -2,27 +2,24 @@ package forex
 
 import cats.{Applicative, FlatMap}
 import cats.effect._
-import cats.implicits.{catsSyntaxApplicativeId, toFlatMapOps}
+import cats.implicits.toFlatMapOps
 import cats.syntax.functor._
-import forex.config.{ApplicationConfig, _}
+import forex.config._
 import forex.state.SharedState
-import fs2.Stream
 import org.http4s.server.blaze.BlazeServerBuilder
+import cats.effect.ExitCode
 
 object Main extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
-    for {
-        app <- new Application[IO].build
-        res <- app.compile.drain.as(ExitCode.Success)
-    } yield  res
+        new Application[IO].build
 
 
 }
 
 class Application[F[_]: ConcurrentEffect: Timer: Applicative: FlatMap] {
 
-  def build: F[Stream[F, Unit]] = {
+  def build:F[ExitCode]  = {
 
     val config = Config.plain("app")
 
@@ -30,18 +27,14 @@ class Application[F[_]: ConcurrentEffect: Timer: Applicative: FlatMap] {
       oneFrameState <- OneFrameStateDomain.init
       sharedState = SharedState(oneFrameState)
       module = new Module[F](config, sharedState)
-      server <- buildServer(config,module).pure[F]
-     } yield server.merge(module.scheduledTasks)
-
-  }
-
-  private def buildServer(config: ApplicationConfig, module: Module[F]) = {
-    for {
-      _ <- BlazeServerBuilder[F]
+      exitCode <- BlazeServerBuilder[F]
         .bindHttp(config.http.port, config.http.host)
         .withHttpApp(module.httpApp)
         .serve
-    } yield ()
+        .merge(module.scheduledTasks)
+        .compile.lastOrError
+     } yield exitCode.asInstanceOf[ExitCode]
+
   }
 
 }

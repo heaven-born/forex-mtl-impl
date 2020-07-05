@@ -32,14 +32,13 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
 
   override def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate] = {
     val r = for {
-      json <- requestHandler.getFreshData()
-        _ = logger.info("Json: "+json)
-      rate <- mapJsonToRates(json)
+      state <- EitherT(oneFrameCache.get)
+      rate = state.rates(CurrencyPair(from = pair.from.show, to=pair.to.show))
         _ = logger.info("Rate: "+rate)
-        fromCurrency = Currency.fromString(rate(0).from) // FIX: remove  index
-        toCurrency = Currency.fromString(rate(0).to)
-        price = rate(0).price
-        timestamp = rate(0).time_stamp
+        fromCurrency = Currency.fromString(rate.from)
+        toCurrency = Currency.fromString(rate.to)
+        price = rate.price
+        timestamp = rate.time_stamp
     } yield Rate(Rate.Pair(fromCurrency,toCurrency), Price(price), Timestamp(timestamp))
 
     r.value
@@ -48,7 +47,7 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
 
   override def scheduledTasks: Stream[F, Unit] = {
 
-    val rates = for {
+    def rates = for {
       json <- requestHandler.getFreshData()
       _ = logger.debug(s"Json: ${json}")
       rate <- mapJsonToRates(json)
@@ -59,7 +58,7 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
     def cacheUpdate:F[Unit] = rates.value.flatMap {
       case Left(error) =>
         logger.error(error.msg, error.ex.getOrElse("Type: Application Error"))
-        oneFrameCache.update {
+        val setNewState = oneFrameCache.update {
             case Left(err) =>
               logger.error(s"Cache was updated with the last error: ${err.msg}")
               Left(error)
@@ -67,13 +66,13 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
               logger.error("Cache was leaned due to expiration time.")
               if (cache.expiredOn.isOverdue()) Left(error) else r
         }
-        Timer[F].sleep(config.ratesRequestRetryInterval) >> cacheUpdate
+        setNewState >> Timer[F].sleep(config.ratesRequestRetryInterval) >> cacheUpdate
       case Right(data) =>
         val newRates = data.map(d => CurrencyPair(d.from,d.to) -> d).toMap
         val deadline = config.cacheExpirationTime.fromNow
         logger.info(s"Received new rates with deadline ${deadline} for currency paris: ${newRates.keys}")
-        oneFrameCache.set(Right(OneFrameRateState(deadline,newRates)))
-        Timer[F].sleep(config.ratesRequestInterval) >> cacheUpdate
+        val setNewState = oneFrameCache.set(Right(OneFrameRateState(deadline,newRates)))
+        setNewState >> Timer[F].sleep(config.ratesRequestInterval) >> cacheUpdate
     }
 
     Stream.eval(cacheUpdate)

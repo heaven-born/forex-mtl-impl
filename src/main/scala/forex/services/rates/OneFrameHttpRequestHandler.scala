@@ -26,10 +26,13 @@ class OneFrameHttpRequestHandler[F[_]: Applicative : Async] (config:OneFrameServ
       val pairs = allSupportedCurrencies.toList
         .combinations(2)
         .flatMap(_.permutations)
-        .map(p=>"pair"->s"${p.head}${p(1)}").toMap
+        .map(p=>"pair"->s"${p.head}${p(1)}").toSeq
+
+      val requestUrl = uri"${config.url}/rates?$pairs"
+      logger.info(s"Request url: $requestUrl")
 
       val request = basicRequest
-        .get(uri"${config.url}/rates?$pairs")
+        .get(requestUrl)
         .header("token","10dc303535874aeccc86a8251e6992f5")
         .readTimeout(config.timeout)
 
