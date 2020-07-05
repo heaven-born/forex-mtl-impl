@@ -5,8 +5,8 @@ import cats.Applicative
 import cats.data.EitherT
 import cats.effect.{Async, Concurrent, Timer}
 import forex.config.RatesService
-import forex.domain.{Currency, Price, Rate, Timestamp}
-import forex.services.rates.OneFrameHttpRequestHandler
+import forex.domain.Rate
+import forex.services.rates.{CacheDomainConverter, OneFrameHttpRequestHandler}
 import forex.services.rates.errors._
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
@@ -20,18 +20,16 @@ import io.circe.generic.auto._
 import io.circe.parser._
 
 
-
-
 class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesService,
                                                                  requestHandler: OneFrameHttpRequestHandler[F],
                                                                  oneFrameCache: OneFrameState[F])
   extends rates.Algebra[F] with Schedulable[F] {
 
-  val logger = Logger[OneFrameLive[F]]
+  private val logger = Logger[OneFrameLive[F]]
 
 
   override def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate] = {
-    val currencyPair = CurrencyPair(from = pair.from.show, to = pair.to.show)
+    val currencyPair = CacheDomainConverter.convert(pair)
 
     def currencyPairValidation(state: OneFrameRateState) =
       if (state.rates.contains(currencyPair)) Right(state)
@@ -40,13 +38,10 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
     val r = for {
       state <- EitherT(oneFrameCache.get)
       _     <- EitherT(currencyPairValidation(state).pure[F])
-        rate = state.rates(currencyPair)
-        _ = logger.info("Rate: "+rate)
-        fromCurrency = Currency.fromString(rate.from)
-        toCurrency = Currency.fromString(rate.to)
-        price = rate.price
-        timestamp = rate.time_stamp
-    } yield Rate(Rate.Pair(fromCurrency,toCurrency), Price(price), Timestamp(timestamp))
+      cacheRate = state.rates(currencyPair)
+      _ = logger.info(s"Cache rate: ${cacheRate}")
+      domainRate = CacheDomainConverter.convert(cacheRate)
+    } yield domainRate
 
     r.value
 
@@ -54,15 +49,15 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
 
   override def scheduledTasks: Stream[F, Unit] = {
 
-    def rates = for {
+    def getRatesFromOneFrame() = for {
       json <- requestHandler.getFreshData()
-      _ = logger.debug(s"Json: ${json}")
+      _ = logger.debug(s"Json: $json")
       rate <- mapJsonToRates(json)
-      _ = logger.debug(s"Rates: ${rate}")
+      _ = logger.debug(s"Rates: $rate")
     } yield  rate
 
 
-    def cacheUpdate:F[Unit] = rates.value.flatMap {
+    def cacheUpdate:F[Unit] = getRatesFromOneFrame().value.flatMap {
       case Left(error) =>
         logger.error(error.msg)
         val setNewState = oneFrameCache.update {
