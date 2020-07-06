@@ -11,13 +11,14 @@ import scala.concurrent.duration.Deadline
 
 object OneFrameStateDomain {
 
-  type OneFrameState[F[_]] = Ref[F, Either[OneFrameServiceError,OneFrameRateState]]
+  type OneFrameStateRef[F[_]] = Ref[F, OneFrameState[F]]
+  type OneFrameState[F[_]] = Either[OneFrameServiceError,OneFrameRateStateHolder]
 
-  def init[F[_]:Sync]:F[OneFrameState[F]] = Ref.of(Left(StateInitializationError()))
+  def init[F[_]:Sync]:F[OneFrameStateRef[F]] = Ref.of(Left(StateInitializationError()))
 
   case class CurrencyPair(from: String, to: String)
 
-  case class OneFrameRateState(expiredOn: Deadline, rates: Map[CurrencyPair, OneFrameRate])
+  case class OneFrameRateStateHolder(expiredOn: Deadline, rates: Map[CurrencyPair, OneFrameRate])
 
   case class OneFrameRate(from: String,
                           to: String,

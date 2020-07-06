@@ -2,14 +2,14 @@ package forex.services.rates
 
 import cats.Applicative
 import cats.effect.{Async, Concurrent, Timer}
-import forex.OneFrameStateDomain.OneFrameState
+import forex.OneFrameStateDomain.OneFrameStateRef
 import forex.config.RatesService
 import interpreters._
 
 object Interpreters {
   def live[F[_]: Applicative: Async: Timer: Concurrent](
                                                          config: RatesService,
-                                                         oneFrameState: OneFrameState[F]) = {
+                                                         oneFrameState: OneFrameStateRef[F]) = {
 
     val cacheProcessor = OneFrameCacheProcessor(oneFrameState)
     val handler = OneFrameHttpRequestHandler[F](config.oneFrameServerHttp)
