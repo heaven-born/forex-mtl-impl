@@ -15,7 +15,7 @@ case class OneFrameCacheProcessor[F[_]: Concurrent](cache: OneFrameStateRef[F]) 
 
   private val logger = Logger[OneFrameCacheProcessor[F]]
 
-  def updateWithError(error: OneFrameServiceError) = {
+  private[rates] def updateWithError(error: OneFrameServiceError) = {
     logger.error(error.msg)
     cache.update {
       case Left(_) =>
@@ -30,13 +30,13 @@ case class OneFrameCacheProcessor[F[_]: Concurrent](cache: OneFrameStateRef[F]) 
   }
 
 
-  def setData(deadline: Deadline, data: List[OneFrameRate]) = {
+  private[rates] def setData[rates](deadline: Deadline, data: List[OneFrameRate]) = {
     val newRates = data.map(d => CurrencyPair(d.from,d.to) -> d).toMap
     logger.info(s"Received new rates with expiration time ${TimeUtils.deadlineToDate(deadline)} for currency paris: ${newRates.keys.mkString(" ")}")
     cache.set(Right(OneFrameRateStateHolder(deadline,newRates)))
   }
 
-  def getCurrencyPair(pair: CurrencyPair): EitherT[F, OneFrameServiceError, OneFrameRate] = {
+  private[rates] def getCurrencyPair[rates](pair: CurrencyPair): EitherT[F, OneFrameServiceError, OneFrameRate] = {
 
     def currencyPairValidation(state: OneFrameRateStateHolder) =
       if (state.rates.contains(pair)) Right(state)

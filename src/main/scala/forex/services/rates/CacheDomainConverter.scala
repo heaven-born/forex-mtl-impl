@@ -6,7 +6,7 @@ import forex.domain.{Currency, Price, Rate, Timestamp}
 
 object CacheDomainConverter {
 
-  def convert(rate: OneFrameRate) =  {
+  private[rates] def convert(rate: OneFrameRate) =  {
     val fromCurrency = Currency.fromString(rate.from)
     val toCurrency = Currency.fromString(rate.to)
     val price = rate.price
@@ -14,7 +14,7 @@ object CacheDomainConverter {
     Rate(Rate.Pair(fromCurrency,toCurrency), Price(price), Timestamp(timestamp))
   }
 
-  def convert(pair: Rate.Pair) =
+  private[rates] def convert[rates](pair: Rate.Pair) =
     CurrencyPair(from = pair.from.show, to = pair.to.show)
 
 

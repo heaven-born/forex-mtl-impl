@@ -12,7 +12,7 @@ import io.circe.generic.auto._
 
 object OneFrameJsonMapper {
 
-  def jsonToRates[F[_]:Applicative](json: String): EitherT[F,OneFrameServiceError, List[OneFrameRate]] = {
+  private[rates] def jsonToRates[F[_]:Applicative](json: String): EitherT[F,OneFrameServiceError, List[OneFrameRate]] = {
 
       val either:Either[OneFrameServiceError, List[OneFrameRate]] =  for {
         json <- parse(json)
