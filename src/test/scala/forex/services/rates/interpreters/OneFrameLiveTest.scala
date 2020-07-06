@@ -48,7 +48,7 @@ class OneFrameLiveTest extends AnyFlatSpec  with Matchers with EitherValues with
     val time = OffsetDateTime.parse("2020-07-06T10:45:00.901Z")
     val rate = EitherT(IO(OneFrameRate("AUD","CAD",0,0,0,time).asRight[OneFrameServiceError]))
 
-    (cacheProcessorMock.getCurrencyPair _) expects(*) returns(rate)
+    cacheProcessorMock.getCurrencyPair _ expects * returns rate
 
     val inputPari = Rate.Pair(Currency.AUD,Currency.CAD)
     val r = oneFrameLive.get(inputPari)
@@ -71,9 +71,9 @@ class OneFrameLiveTest extends AnyFlatSpec  with Matchers with EitherValues with
 
     val json = EitherT(IO(validJson.asRight[OneFrameServiceError]))
 
-    (handler.getFreshData _ ) expects() repeat numberOfCacheUpdates returns(json)
+    handler.getFreshData _  expects() repeat numberOfCacheUpdates returns json
 
-    (cacheProcessorMock.setData _ ) expects(*,*) repeat numberOfCacheUpdates returns(IO(()))
+    cacheProcessorMock.setData _  expects(*,*) repeat numberOfCacheUpdates returns IO(())
 
     oneFrameLive.scheduledTasks.compile.drain.unsafeRunAsyncAndForget()
 
