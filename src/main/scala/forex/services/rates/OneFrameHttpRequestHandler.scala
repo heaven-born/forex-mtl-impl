@@ -21,7 +21,7 @@ case class OneFrameHttpRequestHandler[F[_]: Applicative : Async] (config:OneFram
 
   implicit val sttpBackend = HttpURLConnectionBackend()
 
-  def getFreshData() = {
+  def getFreshData():EitherT[F,OneFrameServiceError, String] = {
 
       val pairs = allSupportedCurrencies.toList
         .combinations(2)

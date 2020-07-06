@@ -6,17 +6,14 @@ import cats.data.EitherT
 import cats.effect.{Async, Concurrent, Timer}
 import forex.config.RatesService
 import forex.domain.Rate
-import forex.services.rates.{CacheDomainConverter, OneFrameCacheProcessor, OneFrameHttpRequestHandler}
+import forex.services.rates.{CacheDomainConverter, OneFrameCacheProcessor, OneFrameHttpRequestHandler, OneFrameJsonMapper}
 import forex.services.rates.errors._
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
 import forex.OneFrameStateDomain.OneFrameRate
 import forex.services.rates
-import forex.services.rates.errors.OneFrameServiceError.{JsonMappingError, JsonParsingError}
 import forex.state.Schedulable
 import fs2.Stream
-import io.circe.generic.auto._
-import io.circe.parser._
 
 
 class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesService,
@@ -43,10 +40,10 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
 
   override def scheduledTasks: Stream[F, Unit] = {
 
-    def getRatesFromOneFrame() = for {
+    def getRatesFromOneFrame():EitherT[F,OneFrameServiceError, List[OneFrameRate]] = for {
       json <- requestHandler.getFreshData()
       _ = logger.debug(s"Json: $json")
-      rate <- mapJsonToRates(json)
+      rate <- OneFrameJsonMapper.jsonToRates(json)(Applicative[F])
       _ = logger.debug(s"Rates: $rate")
     } yield  rate
 
@@ -63,20 +60,6 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
 
     Stream.eval(cacheUpdate)
   }
-
-  private def mapJsonToRates(json: String): EitherT[F,OneFrameServiceError, List[OneFrameRate]] = {
-
-    val either:Either[OneFrameServiceError, List[OneFrameRate]] = for {
-      json <- parse(json)
-        .leftMap(e => JsonParsingError("Parsing error", Some(e)))
-      obj <- json.as[List[OneFrameRate]]
-        .leftMap(e => JsonMappingError(s"Mapping error. Reason: ${e.getMessage()}. JSON: ${json.noSpaces}", Some(e)))
-    } yield obj
-
-    EitherT(either.pure[F])
-  }
-
-
 
 
 }
