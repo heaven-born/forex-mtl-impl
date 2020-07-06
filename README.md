@@ -3,10 +3,10 @@
 
 ### Notes
 
-* In order to work around limitation of one-frame API I create cache that is refreshed by timer. Following confg options are availabel for configuration:
-    * cache-expiration-time - default 5 min 
-    * rates-request-interval - default 4 min  (about 360 request per day)
-    * rates-request-retry-interval - default 10 sec
+* In order to work around limitation of one-frame API I created cache that is refreshed by timer. Following confg options are available:
+    *  cache-expiration-time - default 5 min
+    *  rates-request-interval - default 4 min  (about 360 request per day)
+    *  rates-request-retry-interval - default 10 sec
 * The cache is purely functional, so I had to extract it into a separate package. Access to to this cache should be considered as a side effect.
 
 ### Assumptions
