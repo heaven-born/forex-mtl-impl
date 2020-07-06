@@ -9,9 +9,13 @@ import interpreters._
 object Interpreters {
   def live[F[_]: Applicative: Async: Timer: Concurrent](
                                                          config: RatesService,
-                                                         oneFrameState: OneFrameState[F]) =
+                                                         oneFrameState: OneFrameState[F]) = {
+
+    val cacheProcessor = OneFrameCacheProcessor(oneFrameState)
+    val handler = OneFrameHttpRequestHandler[F](config.oneFrameServerHttp)
     new OneFrameLive[F](
       config,
-      new OneFrameHttpRequestHandler[F](config.oneFrameServerHttp),
-      oneFrameState)
+      handler,
+      cacheProcessor)
+  }
 }

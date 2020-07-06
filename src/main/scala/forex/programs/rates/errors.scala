@@ -18,6 +18,7 @@ object errors {
     case OneFrameServiceError.JsonParsingError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
     case OneFrameServiceError.JsonMappingError(msg,ex) => RatesProgramError.RateLookupFailed(msg,ex)
     case OneFrameServiceError.StateInitializationError(msg) => RatesProgramError.RateLookupFailed(msg, None)
+    case  OneFrameServiceError.NoSuchCurrencyPairError(msg) =>RatesProgramError.RateLookupFailed(msg, None)
   }
 
 }

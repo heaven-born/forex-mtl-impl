@@ -15,7 +15,7 @@ import forex.config.OneFrameServerHttpConfig
 
 import scala.util.{Failure, Success, Try}
 
-class OneFrameHttpRequestHandler[F[_]: Applicative : Async] (config:OneFrameServerHttpConfig){
+case class OneFrameHttpRequestHandler[F[_]: Applicative : Async] (config:OneFrameServerHttpConfig){
 
   val logger = Logger[OneFrameHttpRequestHandler[F]]
 
