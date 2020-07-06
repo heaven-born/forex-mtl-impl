@@ -11,7 +11,7 @@ import forex.utils.TimeUtils
 
 import scala.concurrent.duration.Deadline
 
-case class OneFrameCacheProcessor[F[_]: Concurrent](cache: OneFrameStateRef[F]) {
+class OneFrameCacheProcessor[F[_]: Concurrent](cache: OneFrameStateRef[F]) {
 
   private val logger = Logger[OneFrameCacheProcessor[F]]
 
@@ -30,13 +30,13 @@ case class OneFrameCacheProcessor[F[_]: Concurrent](cache: OneFrameStateRef[F]) 
   }
 
 
-  private[rates] def setData[rates](deadline: Deadline, data: List[OneFrameRate]) = {
+  def setData(deadline: Deadline, data: List[OneFrameRate]) = {
     val newRates = data.map(d => CurrencyPair(d.from,d.to) -> d).toMap
     logger.info(s"Received new rates with expiration time ${TimeUtils.deadlineToDate(deadline)} for currency paris: ${newRates.keys.mkString(" ")}")
     cache.set(Right(OneFrameRateStateHolder(deadline,newRates)))
   }
 
-  private[rates] def getCurrencyPair[rates](pair: CurrencyPair): EitherT[F, OneFrameServiceError, OneFrameRate] = {
+  def getCurrencyPair(pair: CurrencyPair): EitherT[F, OneFrameServiceError, OneFrameRate] = {
 
     def currencyPairValidation(state: OneFrameRateStateHolder) =
       if (state.rates.contains(pair)) Right(state)

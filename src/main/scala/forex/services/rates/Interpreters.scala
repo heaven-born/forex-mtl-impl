@@ -11,7 +11,7 @@ object Interpreters {
                                                          config: RatesService,
                                                          oneFrameState: OneFrameStateRef[F]) = {
 
-    val cacheProcessor = OneFrameCacheProcessor(oneFrameState)
+    val cacheProcessor = new OneFrameCacheProcessor(oneFrameState)
     val handler = OneFrameHttpRequestHandler[F](config.oneFrameServerHttp)
     new OneFrameLive[F](
       config,
