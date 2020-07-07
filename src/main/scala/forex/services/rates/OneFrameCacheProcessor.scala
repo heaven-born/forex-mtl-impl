@@ -1,7 +1,7 @@
 package forex.services.rates
 
 import cats.data.{EitherT, Reader}
-import cats.effect.Concurrent
+import cats.effect.Async
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
 import com.typesafe.scalalogging.Logger
 import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate, OneFrameRateStateHolder, OneFrameStateRef}
@@ -11,7 +11,7 @@ import forex.utils.{FunctionUtils, TimeUtils}
 
 import scala.concurrent.duration.Deadline
 
-class OneFrameCacheProcessor[F[_]: Concurrent](cache: OneFrameStateRef[F]) {
+class OneFrameCacheProcessor[F[_]: Async](cache: OneFrameStateRef[F]) {
 
   private val logger = Logger[OneFrameCacheProcessor[F]]
 

@@ -1,7 +1,6 @@
 package forex.services.rates
 
 
-import cats.Applicative
 import cats.effect.Async
 import forex.domain.Currency.allSupportedCurrencies
 import forex.services.rates.errors.OneFrameServiceError
@@ -15,7 +14,7 @@ import forex.config.OneFrameServerHttpConfig
 
 import scala.util.{Failure, Success, Try}
 
-case class OneFrameHttpRequestHandler[F[_]: Applicative : Async] (config:OneFrameServerHttpConfig){
+case class OneFrameHttpRequestHandler[F[_]: Async] (config:OneFrameServerHttpConfig){
 
   val logger = Logger[OneFrameHttpRequestHandler[F]]
 

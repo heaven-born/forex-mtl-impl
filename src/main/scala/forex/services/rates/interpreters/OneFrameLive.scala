@@ -1,9 +1,8 @@
 package forex.services.rates.interpreters
 
 
-import cats.Applicative
 import cats.data.EitherT
-import cats.effect.{Async, Concurrent, Timer}
+import cats.effect.{Async,Timer}
 import forex.config.RatesService
 import forex.domain.Rate
 import forex.services.rates.{CacheDomainConverter, OneFrameCacheProcessor, OneFrameHttpRequestHandler, OneFrameJsonMapper}
@@ -16,7 +15,7 @@ import forex.state.Schedulable
 import fs2.Stream
 
 
-class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesService,
+class OneFrameLive[F[_]: Timer: Async](config: RatesService,
                                                                  requestHandler: OneFrameHttpRequestHandler[F],
                                                                  cache: OneFrameCacheProcessor[F])
   extends rates.Algebra[F] with Schedulable[F] {
@@ -43,7 +42,7 @@ class OneFrameLive[F[_]: Applicative : Async: Timer: Concurrent](config: RatesSe
     def getRatesFromOneFrame():EitherT[F,OneFrameServiceError, List[OneFrameRate]] = for {
       json <- requestHandler.getFreshData()
       _ = logger.debug(s"Json: $json")
-      rate <- OneFrameJsonMapper.jsonToRates(json)(Applicative[F])
+      rate <- OneFrameJsonMapper.jsonToRates(json)
       _ = logger.debug(s"Rates: $rate")
     } yield  rate
 
