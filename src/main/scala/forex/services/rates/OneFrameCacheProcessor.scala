@@ -1,13 +1,13 @@
 package forex.services.rates
 
-import cats.data.EitherT
+import cats.data.{EitherT, Reader}
 import cats.effect.Concurrent
-import cats.implicits.catsSyntaxApplicativeId
+import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
 import com.typesafe.scalalogging.Logger
 import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate, OneFrameRateStateHolder, OneFrameStateRef}
 import forex.services.rates.errors.OneFrameServiceError
 import forex.services.rates.errors.OneFrameServiceError.NoSuchCurrencyPairError
-import forex.utils.TimeUtils
+import forex.utils.{FunctionUtils, TimeUtils}
 
 import scala.concurrent.duration.Deadline
 
@@ -32,20 +32,19 @@ class OneFrameCacheProcessor[F[_]: Concurrent](cache: OneFrameStateRef[F]) {
 
   def setData(deadline: Deadline, data: List[OneFrameRate]) = {
     val newRates = data.map(d => CurrencyPair(d.from,d.to) -> d).toMap
+    val r = Reader(FunctionUtils.toParameterAware(newRates.get)).map{
+      case (key,None) => Left(NoSuchCurrencyPairError(s"${key.from}/${key.to}"))
+      case (_,Some(r)) => r.asRight[OneFrameServiceError]
+    }.run
     logger.info(s"Received new rates with expiration time ${TimeUtils.deadlineToDate(deadline)} for currency paris: ${newRates.keys.mkString(" ")}")
-    cache.set(Right(OneFrameRateStateHolder(deadline,newRates)))
+    cache.set(Right(OneFrameRateStateHolder(deadline,r)))
   }
 
   def getCurrencyPair(pair: CurrencyPair): EitherT[F, OneFrameServiceError, OneFrameRate] = {
 
-    def currencyPairValidation(state: OneFrameRateStateHolder) =
-      if (state.rates.contains(pair)) Right(state)
-      else Left(NoSuchCurrencyPairError(s"${pair.from}/${pair.to}"):OneFrameServiceError)
-
     for {
       state <- EitherT(cache.get)
-      _     <- EitherT(currencyPairValidation(state).pure[F])
-      cacheRate = state.rates(pair)
+      cacheRate <- EitherT(state.rates(pair).pure[F])
     } yield  cacheRate
 
 

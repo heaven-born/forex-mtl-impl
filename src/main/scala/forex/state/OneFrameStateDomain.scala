@@ -18,7 +18,8 @@ object OneFrameStateDomain {
 
   case class CurrencyPair(from: String, to: String)
 
-  case class OneFrameRateStateHolder(expiredOn: Deadline, rates: Map[CurrencyPair, OneFrameRate])
+  case class OneFrameRateStateHolder(expiredOn: Deadline,
+                                     rates: CurrencyPair => Either[OneFrameServiceError, OneFrameRate])
 
   case class OneFrameRate(from: String,
                           to: String,
