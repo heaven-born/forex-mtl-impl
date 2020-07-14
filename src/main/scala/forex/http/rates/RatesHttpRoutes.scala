@@ -23,7 +23,7 @@ class RatesHttpRoutes[F[_]: Sync](rates: RatesProgram[F]) extends Http4sDsl[F] {
           .get(RatesProgramProtocol.GetRatesRequest(from, to))
           .flatMap {
             case Left(error) =>
-              error.ex.foreach(_.printStackTrace())
+              error.ex.printStackTrace()
               InternalServerError(s"${error.msg}\r\n")
             case Right(result) =>
               Ok(result.asGetApiResponse)

@@ -47,7 +47,7 @@ libraryDependencies ++= Seq(
   Libraries.circeJava8,
   Libraries.pureConfig,
   Libraries.logback,
- "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test,
+  "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test,
   Libraries.scalaLogging,
   Libraries.scalaTest        % Test,
   Libraries.scalaCheck       % Test,
