@@ -42,7 +42,7 @@ class OneFrameServiceTest extends AnyFlatSpec  with Matchers with EitherValues w
     cacheProcessorMock.getCurrencyPair _ expects * returns rate
 
     val inputPari = Rate.Pair(Currency.AUD,Currency.CAD)
-    val r = oneFrameLive.get(inputPari)
+    val r = oneFrameLive.get(inputPari).value
 
     val res = r.unsafeRunSync()
 

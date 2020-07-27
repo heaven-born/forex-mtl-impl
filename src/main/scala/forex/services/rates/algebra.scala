@@ -8,7 +8,7 @@ import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate}
 import scala.concurrent.duration.Deadline
 
 trait OneFrameAlgebra[F[_]] {
-  def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate]
+  def get(pair: Rate.Pair): EitherT[F,OneFrameServiceError,Rate]
 }
 
 trait OneFrameCacheProcessorAlgebra[F[_]] {

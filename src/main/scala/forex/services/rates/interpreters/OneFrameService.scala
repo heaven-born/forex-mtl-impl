@@ -19,17 +19,14 @@ class OneFrameService[F[_]: Timer: Async: OneFrameCacheProcessorAlgebra: OneFram
 
   private val logger = Logger[OneFrameService[F]]
 
-  override def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate] = {
+  override def get(pair: Rate.Pair): EitherT[F, OneFrameServiceError, Rate] = {
     val currencyPair = CacheDomainConverter.convert(pair)
 
-    val r = for {
+    for {
       cacheRate <- OneFrameCacheProcessor[F].getCurrencyPair(currencyPair)
       _ = logger.info(s"Cache rate: ${cacheRate}")
       domainRate = CacheDomainConverter.convert(cacheRate)
     } yield  domainRate
-
-
-    r.value
 
   }
 
