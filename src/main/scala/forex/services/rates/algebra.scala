@@ -1,8 +1,25 @@
 package forex.services.rates
 
+import cats.data.EitherT
 import forex.domain.Rate
 import errors._
+import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate}
 
-trait Algebra[F[_]] {
+import scala.concurrent.duration.Deadline
+
+trait OneFrameAlgebra[F[_]] {
   def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate]
 }
+
+trait OneFrameCacheProcessorAlgebra[F[_]] {
+  def updateWithError(error: OneFrameServiceError):F[Unit]
+  def setData(deadline: Deadline, data: List[OneFrameRate]):F[Unit]
+  def getCurrencyPair(pair: CurrencyPair): EitherT[F, OneFrameServiceError, OneFrameRate]
+}
+
+trait OneFrameHttpRequestHandlerAlgebra[F[_]] {
+  def getFreshData:EitherT[F,OneFrameServiceError, String]
+}
+
+
+

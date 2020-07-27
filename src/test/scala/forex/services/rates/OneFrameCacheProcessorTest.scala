@@ -3,7 +3,7 @@ package forex.services.rates
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
 
-import cats.effect.{IO, Sync}
+import cats.effect.{Async, IO}
 import cats.effect.concurrent.Ref
 import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate, OneFrameStateRef}
 import forex.services.rates.errors.OneFrameServiceError.{LookupResponseError, NoSuchCurrencyPairError, StateInitializationError}
@@ -18,13 +18,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class OneFrameCacheProcessorTest extends AnyFlatSpec  with Matchers with EitherValues {
 
-  implicit def sync = Sync[IO]
+  implicit def sync = Async[IO]
   implicit val cs = IO.contextShift(implicitly[ExecutionContext])
 
   "getCurrencyPair" should "return StateInitializationError on 'clean' cache state" in {
     val r = for {
       state <- Ref.of(Left(StateInitializationError())):IO[OneFrameStateRef[IO]]
-      processor = new OneFrameCacheProcessor[IO](state)
+      processor = new OneFrameCacheProcessor[IO]()(sync,state)
       noSuchPariError <- processor.getCurrencyPair(CurrencyPair("any","any")).value
     } yield noSuchPariError
 
@@ -37,7 +37,7 @@ class OneFrameCacheProcessorTest extends AnyFlatSpec  with Matchers with EitherV
   it should "return NoSuchCurrencyPairError if currency pari is missing in cache" in {
     val r = for {
       state <- Ref.of(Left(StateInitializationError())):IO[OneFrameStateRef[IO]]
-      processor = new OneFrameCacheProcessor[IO](state)
+      processor = new OneFrameCacheProcessor[IO]()(sync,state)
       rate = List(OneFrameRate("","",0,0,0,OffsetDateTime.now()))
       _ <-  processor.setData(Deadline.now, rate)
       noSuchPariError <- processor.getCurrencyPair(CurrencyPair("any","any")).value
@@ -53,7 +53,7 @@ class OneFrameCacheProcessorTest extends AnyFlatSpec  with Matchers with EitherV
     val rate = OneFrameRate("EUR","USD",0,0,0,OffsetDateTime.now())
     val r = for {
       state <- Ref.of(Left(StateInitializationError())):IO[OneFrameStateRef[IO]]
-      processor = new OneFrameCacheProcessor[IO](state)
+      processor = new OneFrameCacheProcessor[IO]()(sync,state)
       _ <-  processor.setData(Deadline.now, List(rate))
       noSuchPariError <- processor.getCurrencyPair(CurrencyPair("EUR","USD")).value
     } yield noSuchPariError
@@ -67,7 +67,7 @@ class OneFrameCacheProcessorTest extends AnyFlatSpec  with Matchers with EitherV
   "updateWithError" should "replace prev error StateInitializationError with new error NoSuchCurrencyPairError" in {
     val r = for {
       state <- Ref.of(Left(StateInitializationError())):IO[OneFrameStateRef[IO]]
-      processor = new OneFrameCacheProcessor[IO](state)
+      processor = new OneFrameCacheProcessor[IO]()(sync,state)
       _ <-  processor.updateWithError(NoSuchCurrencyPairError("new error"))
       noSuchPariError <- processor.getCurrencyPair(CurrencyPair("EUR","USD")).value
     } yield noSuchPariError
@@ -82,7 +82,7 @@ class OneFrameCacheProcessorTest extends AnyFlatSpec  with Matchers with EitherV
     val rate = OneFrameRate("EUR","USD",0,0,0,OffsetDateTime.now())
     val r = for {
       state <- Ref.of(Left(StateInitializationError())):IO[OneFrameStateRef[IO]]
-      processor = new OneFrameCacheProcessor[IO](state)
+      processor = new OneFrameCacheProcessor[IO]()(sync,state)
       _ <-  processor.setData(Deadline.now, List(rate))
       _ <-  processor.updateWithError(LookupResponseError("new error"))
       noSuchPariError <- processor.getCurrencyPair(CurrencyPair("EUR","USD")).value
@@ -100,7 +100,7 @@ class OneFrameCacheProcessorTest extends AnyFlatSpec  with Matchers with EitherV
 
     val r = for {
       state <- Ref.of(Left(StateInitializationError())):IO[OneFrameStateRef[IO]]
-      processor = new OneFrameCacheProcessor[IO](state)
+      processor = new OneFrameCacheProcessor[IO]()(sync,state)
       _ <-  processor.setData(notExpiredDeadline, List(rate))
       _ <-  processor.updateWithError(LookupResponseError("new error"))
       noSuchPariError <- processor.getCurrencyPair(CurrencyPair("EUR","USD")).value

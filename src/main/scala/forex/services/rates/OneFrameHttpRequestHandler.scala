@@ -10,37 +10,39 @@ import sttp.client.{HttpURLConnectionBackend, basicRequest}
 import sttp.client._
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
-import forex.config.OneFrameServerHttpConfig
+import forex.config.ApplicationConfig
 
 import scala.util.{Failure, Success, Try}
 
-case class OneFrameHttpRequestHandler[F[_]: Applicative] (config:OneFrameServerHttpConfig){
+
+class OneFrameHttpRequestHandler[F[_]: Applicative] (implicit config:ApplicationConfig)
+  extends OneFrameHttpRequestHandlerAlgebra[F] {
 
   val logger = Logger[OneFrameHttpRequestHandler[F]]
 
   implicit val sttpBackend = HttpURLConnectionBackend()
 
-  def getFreshData():EitherT[F,OneFrameServiceError, String] = {
+  def getFreshData:EitherT[F,OneFrameServiceError, String] = {
 
     val pairs = allSupportedCurrencies.toList
       .combinations(2)
       .flatMap(_.permutations)
       .map(p=>"pair"->s"${p.head}${p(1)}").toSeq
 
-    val requestUrl = uri"${config.url}/rates?$pairs"
+    val requestUrl = uri"${config.ratesService.oneFrameServerHttp.url}/rates?$pairs"
     logger.info(s"Request url: $requestUrl")
 
     val request = basicRequest
       .get(requestUrl)
       .header("token","10dc303535874aeccc86a8251e6992f5")
-      .readTimeout(config.timeout)
+      .readTimeout(config.ratesService.oneFrameServerHttp.timeout)
 
     val rawResponse = Try(request.send()).pure[F]
     convertEndpointErrorsToServiceErrors(rawResponse)
   }
 
   private def convertEndpointErrorsToServiceErrors(
-                                res: F[Try[Response[Either[String, String]]]]): EitherT[F, OneFrameServiceError, String] =
+                          res: F[Try[Response[Either[String, String]]]]): EitherT[F, OneFrameServiceError, String] =
     EitherT {
       res.map {
         case Failure(ex) =>
@@ -53,5 +55,11 @@ case class OneFrameHttpRequestHandler[F[_]: Applicative] (config:OneFrameServerH
     }
 
 
+
+}
+
+object OneFrameHttpRequestHandler {
+  implicit def apply[F[_]:Applicative: OneFrameHttpRequestHandlerAlgebra] =
+    implicitly[OneFrameHttpRequestHandlerAlgebra[F]]
 
 }

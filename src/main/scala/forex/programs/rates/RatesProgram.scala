@@ -6,24 +6,20 @@ import errors._
 import forex.domain._
 import forex.services.RatesService
 
-class Program[F[_]: Functor](
-    ratesService: RatesService[F]
-) extends Algebra[F] {
+class RatesProgram[F[_]: Functor: RatesService] extends RatesProgramAlgebra[F] {
 
   override def get(request: Protocol.GetRatesRequest): F[RatesProgramError Either Rate] = {
     import request._
     import Rate._
-    EitherT(ratesService.get(Pair(from, to)))
+    EitherT(implicitly[RatesService[F]].get(Pair(from, to)))
       .leftMap(toProgramError)
       .value
   }
 
 }
 
-object Program {
+object RatesProgram {
 
-  def apply[F[_]: Functor](
-      ratesService: RatesService[F]
-  ): Algebra[F] = new Program[F](ratesService)
+  def apply[F[_]: Functor:RatesService]: RatesProgramAlgebra[F] = new RatesProgram[F]
 
 }

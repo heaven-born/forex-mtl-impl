@@ -3,8 +3,9 @@ package forex
 import cats.effect.{Concurrent, Timer}
 import forex.config.ApplicationConfig
 import forex.http.rates.RatesHttpRoutes
-import forex.services._
-import forex.programs._
+import forex.programs.rates.RatesProgram
+import forex.services.RatesService
+import forex.services.rates.interpreters.LiveInstances
 import forex.state.SharedState
 import org.http4s._
 import org.http4s.implicits._
@@ -12,27 +13,22 @@ import org.http4s.server.middleware.{AutoSlash, Timeout}
 
 class Module[F[_]: Concurrent: Timer](config: ApplicationConfig, sharedState: SharedState[F]) {
 
-  private val ratesService: RatesService[F] = RatesServices.live[F](config.ratesService, sharedState.oneFrame)
+  val live = new LiveInstances[F](config,sharedState.oneFrame)
+  import live._
 
-  private val ratesProgram: RatesProgram[F] = RatesProgram[F](ratesService)
-
-  private val ratesHttpRoutes: HttpRoutes[F] = new RatesHttpRoutes[F](ratesProgram).routes
+  private val ratesHttpRoutes: HttpRoutes[F] = new RatesHttpRoutes[F](RatesProgram[F]).routes
 
   //it can merge streams from multiple services
-  def scheduledTasks = ratesService.scheduledTasks
+  def scheduledTasks = implicitly[RatesService[F]].scheduledTasks
 
   type PartialMiddleware = HttpRoutes[F] => HttpRoutes[F]
   type TotalMiddleware   = HttpApp[F] => HttpApp[F]
 
-  private val routesMiddleware: PartialMiddleware = {
-    { http: HttpRoutes[F] =>
-      AutoSlash(http)
-    }
-  }
+  private val routesMiddleware: PartialMiddleware =
+    (http: HttpRoutes[F]) => AutoSlash(http)
 
-  private val appMiddleware: TotalMiddleware = { http: HttpApp[F] =>
-    Timeout(config.http.timeout)(http)
-  }
+  private val appMiddleware: TotalMiddleware =
+    (http: HttpApp[F]) => Timeout(config.http.timeout)(http)
 
   private val http: HttpRoutes[F] = ratesHttpRoutes
 

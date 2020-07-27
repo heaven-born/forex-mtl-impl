@@ -11,13 +11,14 @@ import forex.utils.{FunctionUtils, TimeUtils}
 
 import scala.concurrent.duration.Deadline
 
-class OneFrameCacheProcessor[F[_]: Async](cache: OneFrameStateRef[F]) {
+
+class OneFrameCacheProcessor[F[_]: Async: OneFrameStateRef] extends OneFrameCacheProcessorAlgebra[F] {
 
   private val logger = Logger[OneFrameCacheProcessor[F]]
 
-  private[rates] def updateWithError(error: OneFrameServiceError) = {
+  def updateWithError(error: OneFrameServiceError):F[Unit] = {
     logger.error(error.msg)
-    cache.update {
+    OneFrameStateRef[F].update {
       case Left(_) =>
         logger.error(s"Cache was updated with the last error: ${error.msg}")
         Left(error)
@@ -37,17 +38,21 @@ class OneFrameCacheProcessor[F[_]: Async](cache: OneFrameStateRef[F]) {
       case (_,Some(r)) => r.asRight[OneFrameServiceError]
     }.run
     logger.info(s"Received new rates with expiration time ${TimeUtils.deadlineToDate(deadline)} for currency paris: ${newRates.keys.mkString(" ")}")
-    cache.set(Right(OneFrameRateStateHolder(deadline,r)))
+    OneFrameStateRef[F].set(Right(OneFrameRateStateHolder(deadline,r)))
   }
 
   def getCurrencyPair(pair: CurrencyPair): EitherT[F, OneFrameServiceError, OneFrameRate] = {
 
     for {
-      state <- EitherT(cache.get)
+      state <- EitherT(OneFrameStateRef[F].get)
       cacheRate <- EitherT(state.rates(pair).pure[F])
     } yield  cacheRate
 
-
   }
 
+}
+
+object OneFrameCacheProcessor {
+  implicit def apply[F[_]: Async: OneFrameCacheProcessorAlgebra] =
+    implicitly[OneFrameCacheProcessorAlgebra[F]]
 }

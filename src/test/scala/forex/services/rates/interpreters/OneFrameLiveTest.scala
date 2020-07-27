@@ -7,8 +7,8 @@ import cats.data.EitherT
 import cats.effect.{Concurrent, IO, Sync}
 import cats.implicits.catsSyntaxEitherId
 import forex.OneFrameStateDomain.OneFrameRate
-import forex.config.RatesService
-import forex.services.rates.{OneFrameCacheProcessor, OneFrameHttpRequestHandler}
+import forex.config.{ApplicationConfig, RatesService}
+import forex.services.rates.{OneFrameCacheProcessorAlgebra, OneFrameHttpRequestHandlerAlgebra}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -28,20 +28,11 @@ class OneFrameLiveTest extends AnyFlatSpec  with Matchers with EitherValues with
   private implicit val timer = IO.timer(implicitly[ExecutionContext])
   implicit def concurrent = Concurrent[IO]
 
-  //FIXIT: looks ugly. Check if mockito can fix it.
-  class OneFrameCacheProcessorStub extends OneFrameCacheProcessor[IO](null)
-  class OneFrameHttpRequestHandlerStub extends OneFrameHttpRequestHandler(null)
+  implicit val cacheProcessorMock= mock[OneFrameCacheProcessorAlgebra[IO]]
+  implicit val handler = mock[OneFrameHttpRequestHandlerAlgebra[IO]]
+  implicit val appConfig = ApplicationConfig(null,config)
 
-  val cacheProcessorMock= mock[OneFrameCacheProcessorStub]
-  val handler = mock[OneFrameHttpRequestHandlerStub]
-  val config = RatesService(
-    oneFrameServerHttp = null,
-    ratesRequestInterval = FiniteDuration(1,TimeUnit.SECONDS),
-    ratesRequestRetryInterval = FiniteDuration(1,TimeUnit.SECONDS),
-    cacheExpirationTime = FiniteDuration(2,TimeUnit.SECONDS)
-  )
-
-  val oneFrameLive = new OneFrameLive[IO](config,handler,cacheProcessorMock)
+  val oneFrameLive = new OneFrame[IO]
 
   "get" should "accept currency pair and return rate without errors" in {
 
@@ -58,7 +49,7 @@ class OneFrameLiveTest extends AnyFlatSpec  with Matchers with EitherValues with
     val expectedRate = Rate(
       pair = inputPari,
       price = forex.domain.Price(0:BigDecimal),
-      timestamp= Timestamp(time))
+      timestamp = Timestamp(time))
 
     res.right.value shouldBe expectedRate
 
@@ -94,6 +85,14 @@ class OneFrameLiveTest extends AnyFlatSpec  with Matchers with EitherValues with
       |}]
       |""".stripMargin
 
+
+
+  private lazy val config = RatesService(
+    oneFrameServerHttp = null,
+    ratesRequestInterval = FiniteDuration(1,TimeUnit.SECONDS),
+    ratesRequestRetryInterval = FiniteDuration(1,TimeUnit.SECONDS),
+    cacheExpirationTime = FiniteDuration(2,TimeUnit.SECONDS)
+  )
 
 
 

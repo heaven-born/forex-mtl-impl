@@ -12,6 +12,10 @@ import scala.concurrent.duration.Deadline
 
 object OneFrameStateDomain {
 
+  object OneFrameStateRef {
+    implicit def apply[F[_]: OneFrameStateRef] = implicitly[OneFrameStateRef[F]]
+  }
+
   type OneFrameStateRef[F[_]] = Ref[F, Either[OneFrameServiceError,OneFrameRateStateHolder]]
 
   def init[F[_]:Sync]:F[OneFrameStateRef[F]] =
