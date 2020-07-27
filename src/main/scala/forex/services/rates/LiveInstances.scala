@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.effect.{Async, Timer}
 import forex.OneFrameStateDomain.OneFrameStateRef
 import forex.config.ApplicationConfig
-import forex.services.rates.interpreters.{OneFrame, OneFrameCacheProcessor, OneFrameHttpRequestHandler}
+import forex.services.rates.interpreters.{OneFrameService, OneFrameCacheProcessor, OneFrameHttpRequestHandler}
 
 
 class LiveInstances[F[_]: Async: Applicative: Timer]
@@ -15,6 +15,6 @@ class LiveInstances[F[_]: Async: Applicative: Timer]
 
   implicit val oneFrameHttpRequestHandler =  new OneFrameHttpRequestHandler[F]
   implicit val oneFrameCacheProcessor = new OneFrameCacheProcessor[F]()
-  implicit val oneFrame = new OneFrame[F]()
+  implicit val oneFrame = new OneFrameService[F]()
 
 }

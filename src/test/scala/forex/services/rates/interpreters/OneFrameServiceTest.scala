@@ -21,7 +21,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
 
-class OneFrameLiveTest extends AnyFlatSpec  with Matchers with EitherValues with MockFactory {
+class OneFrameServiceTest extends AnyFlatSpec  with Matchers with EitherValues with MockFactory {
 
   implicit def sync = Sync[IO]
   implicit val cs = IO.contextShift(implicitly[ExecutionContext])
@@ -32,7 +32,7 @@ class OneFrameLiveTest extends AnyFlatSpec  with Matchers with EitherValues with
   implicit val handler = mock[OneFrameHttpRequestHandlerAlgebra[IO]]
   implicit val appConfig = ApplicationConfig(null,config)
 
-  val oneFrameLive = new OneFrame[IO]
+  val oneFrameLive = new OneFrameService[IO]
 
   "get" should "accept currency pair and return rate without errors" in {
 

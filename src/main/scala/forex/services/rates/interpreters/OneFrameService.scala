@@ -13,11 +13,11 @@ import forex.OneFrameStateDomain.OneFrameRate
 import forex.state.Schedulable
 import fs2.Stream
 
-class OneFrame[F[_]: Timer: Async: OneFrameCacheProcessorAlgebra: OneFrameHttpRequestHandlerAlgebra]
+class OneFrameService[F[_]: Timer: Async: OneFrameCacheProcessorAlgebra: OneFrameHttpRequestHandlerAlgebra]
   (implicit config: ApplicationConfig)
     extends OneFrameAlgebra[F] with Schedulable[F] {
 
-  private val logger = Logger[OneFrame[F]]
+  private val logger = Logger[OneFrameService[F]]
 
   override def get(pair: Rate.Pair): F[OneFrameServiceError Either Rate] = {
     val currencyPair = CacheDomainConverter.convert(pair)
@@ -59,7 +59,7 @@ class OneFrame[F[_]: Timer: Async: OneFrameCacheProcessorAlgebra: OneFrameHttpRe
 
 }
 
-object OneFrame {
+object OneFrameService {
   implicit def apply[F[_]: Async: OneFrameAlgebra] =
     implicitly[OneFrameAlgebra[F]]
 }
