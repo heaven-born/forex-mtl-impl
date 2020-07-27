@@ -7,6 +7,7 @@ import cats.effect.{Async, IO}
 import cats.effect.concurrent.Ref
 import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate, OneFrameStateRef}
 import forex.services.rates.errors.OneFrameServiceError.{LookupResponseError, NoSuchCurrencyPairError, StateInitializationError}
+import forex.services.rates.interpreters.OneFrameCacheProcessor
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

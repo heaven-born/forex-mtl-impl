@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.effect.{Async, Timer}
 import forex.config.ApplicationConfig
 import forex.domain.Rate
-import forex.services.rates.{CacheDomainConverter, OneFrameAlgebra, OneFrameCacheProcessor, OneFrameCacheProcessorAlgebra, OneFrameHttpRequestHandler, OneFrameHttpRequestHandlerAlgebra, OneFrameJsonMapper}
+import forex.services.rates.{CacheDomainConverter, OneFrameAlgebra, OneFrameCacheProcessorAlgebra, OneFrameHttpRequestHandlerAlgebra, OneFrameJsonMapper}
 import forex.services.rates.errors._
 import cats.implicits._
 import com.typesafe.scalalogging.Logger

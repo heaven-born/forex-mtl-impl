@@ -1,16 +1,15 @@
-package forex.services.rates
-
+package forex.services.rates.interpreters
 
 import cats.Applicative
 import cats.data.EitherT
-import forex.domain.Currency.allSupportedCurrencies
-import forex.services.rates.errors.OneFrameServiceError
-import forex.services.rates.errors.OneFrameServiceError.{LookupConnectionError, LookupResponseError}
-import sttp.client.{HttpURLConnectionBackend, basicRequest}
-import sttp.client._
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
 import forex.config.ApplicationConfig
+import forex.domain.Currency.allSupportedCurrencies
+import forex.services.rates.OneFrameHttpRequestHandlerAlgebra
+import forex.services.rates.errors.OneFrameServiceError
+import forex.services.rates.errors.OneFrameServiceError.{LookupConnectionError, LookupResponseError}
+import sttp.client.{HttpURLConnectionBackend, basicRequest, _}
 
 import scala.util.{Failure, Success, Try}
 

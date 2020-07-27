@@ -5,7 +5,7 @@ import forex.config.ApplicationConfig
 import forex.http.rates.RatesHttpRoutes
 import forex.programs.rates.RatesProgram
 import forex.services.RatesService
-import forex.services.rates.interpreters.LiveInstances
+import forex.services.rates.LiveInstances
 import forex.state.SharedState
 import org.http4s._
 import org.http4s.implicits._

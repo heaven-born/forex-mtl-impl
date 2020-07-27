@@ -1,10 +1,11 @@
-package forex.services.rates
+package forex.services.rates.interpreters
 
 import cats.data.{EitherT, Reader}
 import cats.effect.Async
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
 import com.typesafe.scalalogging.Logger
 import forex.OneFrameStateDomain.{CurrencyPair, OneFrameRate, OneFrameRateStateHolder, OneFrameStateRef}
+import forex.services.rates.OneFrameCacheProcessorAlgebra
 import forex.services.rates.errors.OneFrameServiceError
 import forex.services.rates.errors.OneFrameServiceError.NoSuchCurrencyPairError
 import forex.utils.{FunctionUtils, TimeUtils}
