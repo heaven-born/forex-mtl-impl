@@ -8,5 +8,5 @@ Proxy for https://hub.docker.com/r/paidyinc/one-frame
     *  cache-expiration-time - default 5 min
     *  rates-request-interval - default 4 min  (about 360 request per day)
     *  rates-request-retry-interval - default 10 sec
-* The cache is purely functional, so it had to extracted into a separate package.
+* The cache is purely functional, so it is extracted into a separate package.
        
